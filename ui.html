@@ -62,6 +62,10 @@
           parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId } }, '*');
         }
       }
+
+      if (message.type === 'theme-tree') {
+        document.getElementById('output').textContent = JSON.stringify(message.tree, null, 2);
+      }
     }
   </script>
 </body>

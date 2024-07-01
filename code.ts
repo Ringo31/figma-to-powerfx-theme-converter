@@ -9,7 +9,15 @@
 type Mode = {
   name: string,
   modeId: string
+};
+
+/*
+type VariableNode = {
+  id: string;
+  name: string;
+  modes: Mode[]
 }
+  */
 
 // This shows the HTML page in "ui.html".
 figma.showUI(__html__, {width: 600, height: 400});
@@ -17,6 +25,26 @@ figma.showUI(__html__, {width: 600, height: 400});
 // Calls to "parent.postMessage" from within the HTML page will trigger this
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
+function buildThemeTree(variables: Variable[]): Record<string, any> {
+  const tree: Record<string, any> = {};
+
+  variables.forEach(variable => {
+    const paths = variable.name.split('/');
+    let currentLevel = tree;
+
+    paths.forEach((part, index) => {
+      if(!currentLevel[part]) {
+        currentLevel[part] = (index === paths.length - 1) ? {} : {};
+      }
+      currentLevel = currentLevel[part];
+    })
+
+    //currentLevel['modes'] = variable.modes.map(mode => mode.modeId)
+  })
+
+  return tree;
+}
+
 
 figma.ui.onmessage = async (msg) => {
   // One way of distinguishing between different types of messages sent from
@@ -39,6 +67,14 @@ figma.ui.onmessage = async (msg) => {
     const variables = await figma.variables.getLocalVariablesAsync(); // Simule l'accès aux variables locales de Figma
     const convertedVariables = convertToPowerFX(variables);
     figma.ui.postMessage({ type: 'converted-variables', variables: convertedVariables });*/
+  }
+  if (msg.type = 'convert-theme') {
+    //const collection = await figma.variables.getVariableCollectionByIdAsync(msg.collectionId);
+    const variablePromise = await figma.variables.getLocalVariablesAsync();
+
+    const themeTree = buildThemeTree(variablePromise.filter(variable => variable.variableCollectionId === msg.collectionId))
+
+    figma.ui.postMessage({ type: 'theme-tree', tree: themeTree });
   } 
 
   // Make sure to close the plugin when you're done. Otherwise the plugin will
