@@ -7,7 +7,7 @@
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 
 // This shows the HTML page in "ui.html".
-figma.showUI(__html__)
+figma.showUI(__html__, {width: 600, height: 400});
 
 // Calls to "parent.postMessage" from within the HTML page will trigger this
 // callback. The callback will be passed the "pluginMessage" property of the
@@ -40,6 +40,27 @@ figma.ui.onmessage = async (msg: {type: string}) => {
   //figma.closePlugin();
 };
 
+const sendCollectionsList = async () => {
+  try {
+    const variableCollections = await figma.variables.getLocalVariableCollectionsAsync();
+    const collectionsList = variableCollections.map(collection => ({
+      id: collection.id,
+      name: collection.name,
+    }));
+
+    figma.ui.postMessage({
+      type: 'collections-list',
+      collections: collectionsList,
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des collections:', error);
+    figma.ui.postMessage({
+      type: 'collections-list',
+      collections: [],
+    });
+  }
+};
+
 function convertToPowerFX(variables: Variable[]): string {
   let powerFXVariables = '';
   variables.forEach(variable => {
@@ -47,4 +68,7 @@ function convertToPowerFX(variables: Variable[]): string {
   });
   return powerFXVariables;
 }
+
+// Appel de la fonction pour envoyer la liste des collections dès l'ouverture de l'UI
+sendCollectionsList();
 

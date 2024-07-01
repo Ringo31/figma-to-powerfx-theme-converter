@@ -19,6 +19,7 @@
 </head>
 <body>
   <h2>Convertir les variables de thème Figma en PowerFX</h2>
+  <select id="variable-collections"></select>
   <textarea id="output" readonly></textarea>
   <br/>
   <button id="convert-button">Convertir les variables</button>
@@ -35,6 +36,25 @@
       if(message.type === 'converted-variables') {
         const textareaContainer = document.getElementById('output');
         output.innerHTML = message.variables;
+      }
+
+      if (message.type === 'collections-list') {
+        // Remplir le menu déroulant avec les collections
+        const selectElement = document.getElementById('variable-collections');
+        selectElement.innerHTML = ''; // Réinitialiser les options
+
+        message.collections.forEach(collection => {
+          const option = document.createElement('option');
+          option.value = collection.id;
+          option.textContent = collection.name;
+          selectElement.appendChild(option);
+        });
+
+        // Générer le JSON de la première collection par défaut si elle existe
+        /*if (message.collections.length > 0) {
+          const firstCollectionId = message.collections[0].id;
+          parent.postMessage({ pluginMessage: { type: 'generate-json-for-collection', collectionId: firstCollectionId } }, '*');
+        }*/
       }
     }
   </script>
