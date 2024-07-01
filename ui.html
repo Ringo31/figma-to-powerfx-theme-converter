@@ -1,17 +1,42 @@
-<h2>Rectangle Creator</h2>
-<p>Count: <input id="count" value="5"></p>
-<button id="create">Create</button>
-<button id="cancel">Cancel</button>
-<script>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Figma to PowerFX Theme Converter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 16px;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      margin-top: 10px;
+    }
+    button {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Convertir les variables de thème Figma en PowerFX</h2>
+  <textarea id="output" readonly></textarea>
+  <br/>
+  <button id="convert-button">Convertir les variables</button>
 
-document.getElementById('create').onclick = () => {
-  const textbox = document.getElementById('count');
-  const count = parseInt(textbox.value, 10);
-  parent.postMessage({ pluginMessage: { type: 'create-rectangles', count } }, '*')
-}
+  <script>
+    const convertButton = document.getElementById('convert-button');
+    convertButton.onclick = () => {
+      parent.postMessage({ pluginMessage: { type: 'convert-variables' } }, '*');
+    }
 
-document.getElementById('cancel').onclick = () => {
-  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
-}
+    onmessage = (event) => {
+      const message = event.data.pluginMessage;
 
-</script>
+      if(message.type === 'converted-variables') {
+        const textareaContainer = document.getElementById('output');
+        output.innerHTML = message.variables;
+      }
+    }
+  </script>
+</body>
+</html>
