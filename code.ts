@@ -6,6 +6,11 @@
 // You can access browser APIs in the <script> tag inside "ui.html" which has a
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 
+type Mode = {
+  name: string,
+  modeId: string
+}
+
 // This shows the HTML page in "ui.html".
 figma.showUI(__html__, {width: 600, height: 400});
 
@@ -13,32 +18,56 @@ figma.showUI(__html__, {width: 600, height: 400});
 // callback. The callback will be passed the "pluginMessage" property of the
 // posted message.
 
-figma.ui.onmessage = async (msg: {type: string}) => {
+figma.ui.onmessage = async (msg) => {
   // One way of distinguishing between different types of messages sent from
   // your HTML page is to use an object with a "type" property like this.
-  /*if (msg.type === 'create-rectangles') {
-    const nodes: SceneNode[] = [];
-    for (let i = 0; i < msg.count; i++) {
-      const rect = figma.createRectangle();
-      rect.x = i * 150;
-      rect.fills = [{type: 'SOLID', color: {r: 1, g: 0.5, b: 0}}];
-      figma.currentPage.appendChild(rect);
-      nodes.push(rect);
+  if (msg.type === 'convert-variables') {
+    try {
+      const collection = await figma.variables.getVariableCollectionByIdAsync(msg.collectionId);
+      const variableIds = collection?.variableIds
+      const modes = collection?.modes
+      if(modes && variableIds) 
+
+      figma.ui.postMessage({type : 'converted-variables', variables: await convertToPowerFX(variableIds, modes)});
+    } catch (error) {
+      console.error('Erreur lors de la récupération des variables:', error);
+      figma.ui.postMessage({type: 'converted-variables', variables: []})
     }
-    figma.currentPage.selection = nodes;
-    figma.viewport.scrollAndZoomIntoView(nodes);
-  }*/
-    if (msg.type === 'convert-variables') {
-      // Lire les variables locales de Figma
-      const variables = await figma.variables.getLocalVariablesAsync(); // Simule l'accès aux variables locales de Figma
-      const convertedVariables = convertToPowerFX(variables);
-      figma.ui.postMessage({ type: 'converted-variables', variables: convertedVariables });
-    }
+
+    /*
+    // Lire les variables locales de Figma
+    const variables = await figma.variables.getLocalVariablesAsync(); // Simule l'accès aux variables locales de Figma
+    const convertedVariables = convertToPowerFX(variables);
+    figma.ui.postMessage({ type: 'converted-variables', variables: convertedVariables });*/
+  } 
 
   // Make sure to close the plugin when you're done. Otherwise the plugin will
   // keep running, which shows the cancel button at the bottom of the screen.
   //figma.closePlugin();
 };
+
+async function convertToPowerFX(variableIds: string[], modes: Mode[]): Promise<string> {
+  let powerFXVariables = 'Set(tkTheme,{\n';
+
+  // Pour chaque variableId de la collection, on récupère les valeurs
+  const variablePromises = variableIds.map(async variableId => {
+    const variable = await figma.variables.getVariableByIdAsync(variableId);
+    return variable ? `\t${variable.name} : {}\n` : '';
+  })
+
+  const variableNames = await Promise.all(variablePromises);
+  powerFXVariables += variableNames.join('') + '\n});'
+
+  return powerFXVariables;
+}
+
+function getValuesByMode(variable: Variable | null, modes: Mode[]): string {
+  let powerFXVariable = '';
+  modes.forEach(mode => {
+    powerFXVariable += `${mode.name}: \n`
+  });
+  return powerFXVariable
+}
 
 const sendCollectionsList = async () => {
   try {
@@ -60,14 +89,6 @@ const sendCollectionsList = async () => {
     });
   }
 };
-
-function convertToPowerFX(variables: Variable[]): string {
-  let powerFXVariables = '';
-  variables.forEach(variable => {
-    powerFXVariables += `Set(${variable.name}; )\n`;
-  });
-  return powerFXVariables;
-}
 
 // Appel de la fonction pour envoyer la liste des collections dès l'ouverture de l'UI
 sendCollectionsList();

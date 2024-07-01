@@ -30,6 +30,12 @@
       parent.postMessage({ pluginMessage: { type: 'convert-variables' } }, '*');
     }
 
+    // Écouteur pour le changement de sélection dans le menu déroulant
+    document.getElementById('variable-collections').addEventListener('change', (event) => {
+      const selectedCollectionId = event.target.value;
+      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId } }, '*');
+    });
+
     onmessage = (event) => {
       const message = event.data.pluginMessage;
 
@@ -50,11 +56,11 @@
           selectElement.appendChild(option);
         });
 
-        // Générer le JSON de la première collection par défaut si elle existe
-        /*if (message.collections.length > 0) {
+        // Générer le code de la première collection par défaut si elle existe
+        if (message.collections.length > 0) {
           const firstCollectionId = message.collections[0].id;
-          parent.postMessage({ pluginMessage: { type: 'generate-json-for-collection', collectionId: firstCollectionId } }, '*');
-        }*/
+          parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId } }, '*');
+        }
       }
     }
   </script>
