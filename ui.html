@@ -21,14 +21,8 @@
   <h2>Convertir les variables de thème Figma en PowerFX</h2>
   <select id="variable-collections"></select>
   <textarea id="output" readonly></textarea>
-  <br/>
-  <button id="convert-button">Convertir les variables</button>
 
   <script>
-    const convertButton = document.getElementById('convert-button');
-    convertButton.onclick = () => {
-      parent.postMessage({ pluginMessage: { type: 'convert-variables' } }, '*');
-    }
 
     // Écouteur pour le changement de sélection dans le menu déroulant
     document.getElementById('variable-collections').addEventListener('change', (event) => {
