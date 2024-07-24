@@ -8,86 +8,12 @@
 // This shows the HTML page in "ui.html".
 figma.showUI(__html__, {width: 600, height: 400});
 
-
-/********************* ANCIENNE VERSION *********************** */
-async function buildThemeTree(_variables: Variable[], _modes: Array<{modeId: string, name: string}>): Promise<Record<string, any>> {
-  
-  // On initialise un objet vide tree qui sera la racine de notre arborescence
-  const tree: Record<string, any> = {};
-  const modes = _modes
-  //console.log(modes)
-  _variables.forEach(variable => {
-    // Pour chaque variable, on décompose son nom en segments en utilisant '/' comme séparateur.
-    // Chaque segment représente un niveau dans la hiérarchie.
-    // (par exemple, Color.Surface.Background se divise en ['Color', 'Surface', 'Background']).
-    const paths = variable.name.split('/');
-    // currentLevel permet de suivre la position actuelle dans l'arborescence
-    let currentLevel = tree;
-    let lastPart = ''
-
-    paths.forEach(async (part, index) => {
-      // On itère sur chaque segment (part) du nom de la variable.
-      if(!currentLevel[part]) {
-        // Si le segment (part) n'existe pas déjà dans le niveau actuel de l'arborescence (currentLevel), on l'ajoute comme un nouvel objet vide.
-        //currentLevel[part] = (index === paths.length - 1) ? await getVariableValue(variable.valuesByMode[Object.keys(variable.valuesByMode)[0]]) : {};
-        //if (index === paths.length - 1) {
-        /*  if ((index === paths.length - 1)
-            && ((variable.resolvedType !== 'COLOR') || (_modes.length === 1))) {
-            currentLevel[part] = getVariableValue(variable.valuesByMode[modes[0].modeId])
-          } else {
-            // Sinon on initialise à {} pour accueillir le niveau suivant
-            currentLevel[part] = {}
-          }*/
-        //}
-        console.log(part, (index === paths.length - 1))
-        if (index === paths.length - 1) {
-          if (modes.length > 1) {
-            currentLevel[part] = {}
-            if (variable.resolvedType === 'COLOR') {
-              // Boucle sur les modes
-              console.log('avant boucle')
-              
-              Object.keys(variable.valuesByMode).forEach(async (_modeId, _value) => {
-                const modeName = modes.find(({modeId}) => modeId === _modeId)?.name
-                console.log('dans boucle : ', modeName)
-                if(modeName) {
-                  currentLevel[modeName] = await getVariableValue(variable.valuesByMode[_modeId])
-                }
-              })
-            } else {
-              currentLevel[part] = await getVariableValue(variable.valuesByMode[Object.keys(variable.valuesByMode)[0]])
-              //currentLevel[part] = await getVariableValue(variable.valuesByMode[_modes[0].modeId])
-            }
-          } else {
-            currentLevel[part] = await getVariableValue(variable.valuesByMode[Object.keys(variable.valuesByMode)[0]])
-          }
-        } else {
-          currentLevel[part] = {}
-        }
-      }
-
-      currentLevel = currentLevel[part];
-      // On met à jour currentLevel pour pointer vers le nouveau niveau créé ou existant
-    })
-
-    /*
-    // Si on a plusieurs modes et que la variable est une couleur, il faut itérer sur les modes
-    if ((_modes.length > 1) && (variable.resolvedType === 'COLOR')) {
-      Object.keys(variable.valuesByMode).forEach(async (_modeId, _value) => {
-        const modeName = modes.find(({modeId}) => modeId === _modeId)?.name
-  
-        if(modeName) {
-          currentLevel[modeName] = await getVariableValue(variable.valuesByMode[_modeId])
-        }
-      })
-    }
-      */
-  })
-
-  return tree;
+function toPascalCase(input: string): string {
+  return input
+    .split(/[\s_\-]+/)  // Sépare les mots par espaces, underscores ou tirets.
+    //.map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())  // Capitalise la première lettre de chaque mot
+    .join('');  // Joint tous les mots sans espace
 }
-/********************* ANCIENNE VERSION *********************** */
-
 
 function getVariableValue(rawValue: VariableValue) {
   if(isTypeRGBA(rawValue)) {
@@ -111,6 +37,49 @@ async function resolveAlias(_variableAlias: any) {
 
   return resolvedValue
 
+}
+
+function customJSONStringify(obj: any, level=0) {
+  const indent = ' '.repeat(level * 4); // Indentation d'une tabulation par niveau
+  const lastIndent = ' '.repeat((level-1) * 4);
+  const entries = Object.entries(obj);
+  const isLeaf = typeof obj != 'object' || obj === null || entries.length === 0;
+
+  if (isLeaf) {
+    return /\d/.test(obj) ? `${obj}` : `"${obj}"` // Garder les guillemets pour les chaînes
+  }
+  let result = `{\n`;
+
+  entries.forEach(([key, value], index) => {
+  //for (const ([key, value], index) of entries) {
+      // Récupérer la représentation de la clé sans guillemets
+      const keyRepresentation = `${toPascalCase(key)}`;
+
+      // Générer la chaîne formatée pour chaque sous-arbre ou valeur
+      const valueRepresentation = customJSONStringify(value, level + 1);
+
+      // Déterminer si c'est la dernière entrée
+      const isLastEntry = index === entries.length - 1;
+
+      // Ajouter la ligne à la représentation du JSON formaté
+      result += `${indent}${keyRepresentation}: ${valueRepresentation}${isLastEntry ? '' : ','}\n`;
+  })
+
+  result += `${lastIndent}}`;
+  return result;
+}
+
+function displayFormattedJSON(jsonTree: any) {
+  let output = '';
+
+  // Parcourir chaque catégorie au niveau supérieur
+  for (const [category, subtree] of Object.entries(jsonTree)) {
+      output += `Set( tk${category}, `;
+      output += customJSONStringify(subtree, 1);
+      output += `);\n\n`;
+  }
+
+  return output
 }
 
 async function generateVariableTree(_collectionId: string) {
@@ -139,10 +108,11 @@ async function generateVariableTree(_collectionId: string) {
           }
         }
       } else {
-        if (isTypeVariableAlias(variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]])) {
-          variableData = await resolveAlias(variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]])
+        const modeValue = variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]]!;
+        if (isTypeVariableAlias(modeValue)) {
+          variableData = await resolveAlias(modeValue)
         } else {
-          variableData = variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]];
+          variableData = getVariableValue(modeValue);
         }
       }
 
@@ -159,7 +129,7 @@ async function generateVariableTree(_collectionId: string) {
     }
   }
 
-  return jsonTree
+  return displayFormattedJSON(jsonTree)
 }
 
 // Fonctions pour vérifier le type des variables
@@ -180,6 +150,7 @@ function isTypeRGBA(_variableValue: any): _variableValue is RGBA {
 }
 
 figma.ui.onmessage = async (msg) => {
+  console.log(msg)
   // One way of distinguishing between different types of messages sent from
   // your HTML page is to use an object with a "type" property like this.
   if (msg.type = 'convert-theme') {

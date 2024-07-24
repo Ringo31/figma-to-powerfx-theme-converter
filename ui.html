@@ -20,6 +20,10 @@
 <body>
   <h2>Convertir les variables de thème Figma en PowerFX</h2>
   <select id="variable-collections"></select>
+  <select id="variable-groupby">
+    <option value="variant">Variant</option>
+    <option value="mode">Mode</option>
+  </select>
   <textarea id="output" readonly></textarea>
 
   <script>
@@ -27,8 +31,16 @@
     // Écouteur pour le changement de sélection dans le menu déroulant
     document.getElementById('variable-collections').addEventListener('change', (event) => {
       const selectedCollectionId = event.target.value;
-      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId } }, '*');
+      const selectedGroupby = document.getElementById('variable-groupby').value;
+      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: selectedGroupby } }, '*');
     });
+
+    // Ecouteur pour le changement de sélection dans le choix du groupement
+    document.getElementById('variable-groupby').addEventListener('change', (event) => {
+      const selectedCollectionId = document.getElementById('variable-collections').value
+      const selectedGroupby = event.target.value;
+      parent.postMessage({ pluginMessage: { type:'convert-variables', collectionId: selectedCollectionId, groupBy: selectedGroupby} }, '*')
+    })
 
     onmessage = (event) => {
       const message = event.data.pluginMessage;
@@ -53,12 +65,13 @@
         // Générer le code de la première collection par défaut si elle existe
         if (message.collections.length > 0) {
           const firstCollectionId = message.collections[0].id;
-          parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId } }, '*');
+          const selectedGroupby = document.getElementById('variable-groupby').value;
+          parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId, groupBy: selectedGroupby } }, '*');
         }
       }
 
       if (message.type === 'theme-tree') {
-        document.getElementById('output').textContent = JSON.stringify(message.tree, null, 2);
+        document.getElementById('output').textContent = message.tree;
       }
     }
   </script>
