@@ -39,43 +39,57 @@ async function resolveAlias(_variableAlias: any) {
 
 }
 
-function customJSONStringify(obj: any, level=0) {
+function customJSONStringify(obj: any, level=0, _groupByModes: Boolean) {
   const indent = ' '.repeat(level * 4); // Indentation d'une tabulation par niveau
   const lastIndent = ' '.repeat((level-1) * 4);
   const entries = Object.entries(obj);
   const isLeaf = typeof obj != 'object' || obj === null || entries.length === 0;
 
   if (isLeaf) {
-    return /\d/.test(obj) ? `${obj}` : `"${obj}"` // Garder les guillemets pour les chaînes
+    return /\d/.test(obj) ? `${obj}` : `"${obj}"` // Garder les guillemets pour les chaînes quand c'est ni un nombre ni une couleur
   }
-  let result = `{\n`;
+
+  let result = ''
+  if(level === 1 && _groupByModes) {
+    result = 'Switch(varTheme,\n'
+  } else {
+    result = `{\n`;
+  }
 
   entries.forEach(([key, value], index) => {
-  //for (const ([key, value], index) of entries) {
       // Récupérer la représentation de la clé sans guillemets
       const keyRepresentation = `${toPascalCase(key)}`;
 
       // Générer la chaîne formatée pour chaque sous-arbre ou valeur
-      const valueRepresentation = customJSONStringify(value, level + 1);
+      const valueRepresentation = customJSONStringify(value, level + 1, _groupByModes);
 
       // Déterminer si c'est la dernière entrée
       const isLastEntry = index === entries.length - 1;
 
-      // Ajouter la ligne à la représentation du JSON formaté
-      result += `${indent}${keyRepresentation}: ${valueRepresentation}${isLastEntry ? '' : ','}\n`;
+      if(_groupByModes && level === 1) {
+        result += `${indent}"${keyRepresentation}",\n${indent}${valueRepresentation}${isLastEntry ? '' : ','}\n`;
+      } else {
+        // Ajouter la ligne à la représentation du JSON formaté
+        result += `${indent}${keyRepresentation}: ${valueRepresentation}${isLastEntry ? '' : ','}\n`;
+      }
+      
   })
 
-  result += `${lastIndent}}`;
+  if(level === 1 && _groupByModes) {
+    result += `${lastIndent})`;
+  } else {
+    result += `${lastIndent}}`;
+  }
   return result;
 }
 
-function displayFormattedJSON(jsonTree: any) {
+function displayFormattedJSON(jsonTree: any, _groupByModes: Boolean) {
   let output = '';
 
   // Parcourir chaque catégorie au niveau supérieur
   for (const [category, subtree] of Object.entries(jsonTree)) {
       output += `Set( tk${category}, `;
-      output += customJSONStringify(subtree, 1);
+      output += customJSONStringify(subtree, 1, _groupByModes);
       output += `);\n\n`;
   }
 
@@ -91,7 +105,6 @@ async function generateVariableTree(_collectionId: string, groupByModes: Boolean
 
   if (collection) {
     for (const variableId of collection?.variableIds) {
-      //console.log(variableId)
       const variable = await figma.variables.getVariableByIdAsync(variableId);
 
       if (collection.modes.length > 1) {
@@ -154,7 +167,7 @@ async function generateVariableTree(_collectionId: string, groupByModes: Boolean
     }
   }
   //return JSON.stringify(jsonTree, null, 2);
-  return displayFormattedJSON(jsonTree)
+  return displayFormattedJSON(jsonTree, groupByModes)
 }
 
 // Fonctions pour vérifier le type des variables
@@ -175,7 +188,6 @@ function isTypeRGBA(_variableValue: any): _variableValue is RGBA {
 }
 
 figma.ui.onmessage = async (msg) => {
-  console.log(msg)
   // One way of distinguishing between different types of messages sent from
   // your HTML page is to use an object with a "type" property like this.
   if (msg.type = 'convert-theme') {
