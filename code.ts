@@ -5,54 +5,64 @@
 // the *figma document* via the figma global object.
 // You can access browser APIs in the <script> tag inside "ui.html" which has a
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
-
-/*
-type Mode = {
-  name: string,
-  modeId: string
-};
-*/
-/*
-var modes: Array<{
-  name: string,
-  modeId: string
-}>
-*/
-
-
-
-
 // This shows the HTML page in "ui.html".
 figma.showUI(__html__, {width: 600, height: 400});
 
 
-function buildThemeTree(variables: Variable[], _modes: Array<{modeId: string, name: string}>): Record<string, any> {
+/********************* ANCIENNE VERSION *********************** */
+async function buildThemeTree(_variables: Variable[], _modes: Array<{modeId: string, name: string}>): Promise<Record<string, any>> {
   
   // On initialise un objet vide tree qui sera la racine de notre arborescence
   const tree: Record<string, any> = {};
   const modes = _modes
   //console.log(modes)
-  variables.forEach(variable => {
+  _variables.forEach(variable => {
     // Pour chaque variable, on décompose son nom en segments en utilisant '/' comme séparateur.
     // Chaque segment représente un niveau dans la hiérarchie.
     // (par exemple, Color.Surface.Background se divise en ['Color', 'Surface', 'Background']).
     const paths = variable.name.split('/');
     // currentLevel permet de suivre la position actuelle dans l'arborescence
     let currentLevel = tree;
+    let lastPart = ''
 
-    paths.forEach((part, index) => {
+    paths.forEach(async (part, index) => {
       // On itère sur chaque segment (part) du nom de la variable.
       if(!currentLevel[part]) {
         // Si le segment (part) n'existe pas déjà dans le niveau actuel de l'arborescence (currentLevel), on l'ajoute comme un nouvel objet vide.
-        //currentLevel[part] = (index === paths.length - 1) ? {} : {};
-        if (index === paths.length - 1) {
-          if (_modes.length === 1) {
-            // Si on est au dernier segment et qu'il n'y a qu'un seule mode, on écrit directement la valeur
+        //currentLevel[part] = (index === paths.length - 1) ? await getVariableValue(variable.valuesByMode[Object.keys(variable.valuesByMode)[0]]) : {};
+        //if (index === paths.length - 1) {
+        /*  if ((index === paths.length - 1)
+            && ((variable.resolvedType !== 'COLOR') || (_modes.length === 1))) {
             currentLevel[part] = getVariableValue(variable.valuesByMode[modes[0].modeId])
           } else {
             // Sinon on initialise à {} pour accueillir le niveau suivant
             currentLevel[part] = {}
+          }*/
+        //}
+        console.log(part, (index === paths.length - 1))
+        if (index === paths.length - 1) {
+          if (modes.length > 1) {
+            currentLevel[part] = {}
+            if (variable.resolvedType === 'COLOR') {
+              // Boucle sur les modes
+              console.log('avant boucle')
+              
+              Object.keys(variable.valuesByMode).forEach(async (_modeId, _value) => {
+                const modeName = modes.find(({modeId}) => modeId === _modeId)?.name
+                console.log('dans boucle : ', modeName)
+                if(modeName) {
+                  currentLevel[modeName] = await getVariableValue(variable.valuesByMode[_modeId])
+                }
+              })
+            } else {
+              currentLevel[part] = await getVariableValue(variable.valuesByMode[Object.keys(variable.valuesByMode)[0]])
+              //currentLevel[part] = await getVariableValue(variable.valuesByMode[_modes[0].modeId])
+            }
+          } else {
+            currentLevel[part] = await getVariableValue(variable.valuesByMode[Object.keys(variable.valuesByMode)[0]])
           }
+        } else {
+          currentLevel[part] = {}
         }
       }
 
@@ -60,33 +70,96 @@ function buildThemeTree(variables: Variable[], _modes: Array<{modeId: string, na
       // On met à jour currentLevel pour pointer vers le nouveau niveau créé ou existant
     })
 
-    // Si on a plusieurs modes, il faut itérer dessus
-    if (_modes.length > 1) {
+    /*
+    // Si on a plusieurs modes et que la variable est une couleur, il faut itérer sur les modes
+    if ((_modes.length > 1) && (variable.resolvedType === 'COLOR')) {
       Object.keys(variable.valuesByMode).forEach(async (_modeId, _value) => {
         const modeName = modes.find(({modeId}) => modeId === _modeId)?.name
   
         if(modeName) {
-          currentLevel[modeName] = getVariableValue(variable.valuesByMode[_modeId])
+          currentLevel[modeName] = await getVariableValue(variable.valuesByMode[_modeId])
         }
       })
     }
+      */
   })
 
   return tree;
 }
+/********************* ANCIENNE VERSION *********************** */
 
-function getVariableValue(_variableValueByMode: VariableValue): string {
-  console.log(_variableValueByMode, typeof _variableValueByMode)
-  //if(typeof _variableValueByMode === 'number' || typeof _variableValueByMode === 'string') {
-  if( isTypeVariableAlias(_variableValueByMode)) {
-    //const variableAlias = await figma.variables.getVariableByIdAsync(_variableValueByMode.id);
-    return '' //getVariableValue(variableAlias?.valuesByMode)
-  } else if (isTypeRGBA(_variableValueByMode)) {
-    return `RGBA(${Math.round(_variableValueByMode.r*255)}, ${Math.round(_variableValueByMode.g*255)}, ${Math.round(_variableValueByMode.b*255)}, ${_variableValueByMode.a})`
+
+function getVariableValue(rawValue: VariableValue) {
+  if(isTypeRGBA(rawValue)) {
+    return `RGBA(${Math.round(rawValue.r*255)}, ${Math.round(rawValue.g*255)}, ${Math.round(rawValue.b*255)}, ${rawValue.a})`
+  } else {
+    return rawValue.toString();
   }
-  else {
-    return _variableValueByMode.toString()
+}
+
+async function resolveAlias(_variableAlias: any) {
+  let resolvedValue = _variableAlias
+
+  while(isTypeVariableAlias(_variableAlias)) {
+    const aliasId = _variableAlias.id;
+    _variableAlias = await figma.variables.getVariableByIdAsync(aliasId);
+
+    if (!isTypeVariableAlias(_variableAlias.valuesByMode[Object.keys(_variableAlias.valuesByMode)[0]])) {
+      resolvedValue = getVariableValue(_variableAlias.valuesByMode[Object.keys(_variableAlias.valuesByMode)[0]])
+    }
   }
+
+  return resolvedValue
+
+}
+
+async function generateVariableTree(_collectionId: string) {
+  
+  const collection = await figma.variables.getVariableCollectionByIdAsync(_collectionId);
+  const jsonTree = {};
+
+  let variableData: any = {};
+
+  if (collection) {
+    for (const variableId of collection?.variableIds) {
+      //console.log(variableId)
+      const variable = await figma.variables.getVariableByIdAsync(variableId);
+      
+      //let variableData;
+
+      if (variable?.resolvedType === 'COLOR' && collection.modes.length > 1) {
+        variableData = {};
+        for (const mode of collection.modes) {
+          const modeValue = variable?.valuesByMode[mode.modeId];
+
+          if (isTypeVariableAlias(modeValue)) {
+            variableData[mode.name] = await resolveAlias(modeValue)
+          } else if (isTypeRGBA(modeValue)){
+            variableData[mode.name] = getVariableValue(modeValue);
+          }
+        }
+      } else {
+        if (isTypeVariableAlias(variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]])) {
+          variableData = await resolveAlias(variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]])
+        } else {
+          variableData = variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]];
+        }
+      }
+
+      const path = variable?.name.split('/');
+      let currentLevel: any = jsonTree;
+
+      // Créer la structure hiérarchique
+      path?.forEach((key, index) => {
+        if (!currentLevel[key]) {
+            currentLevel[key] = (index === path.length - 1) ? variableData : {};
+        }
+        currentLevel = currentLevel[key];
+      });
+    }
+  }
+
+  return jsonTree
 }
 
 // Fonctions pour vérifier le type des variables
@@ -110,20 +183,10 @@ figma.ui.onmessage = async (msg) => {
   // One way of distinguishing between different types of messages sent from
   // your HTML page is to use an object with a "type" property like this.
   if (msg.type = 'convert-theme') {
-    //const collection = await figma.variables.getVariableCollectionByIdAsync(msg.collectionId);
-    const variablePromise = await figma.variables.getLocalVariablesAsync();
-    //const collectionPromise = await figma.variables.getVariableCollectionByIdAsync(msg.collectionId)
-    const collectionPromise = await getCollectionById(msg.collectionId);
-    //console.log(collectionPromise)
+
+    const themeTree = await generateVariableTree(msg.collectionId);
+    figma.ui.postMessage({ type: 'theme-tree', tree: themeTree });
     
-    const modesPromise = collectionPromise.modes
-
-    //Object.freeze(modes)
-    if (collectionPromise) {
-      const themeTree = buildThemeTree(variablePromise.filter(variable => variable.variableCollectionId === msg.collectionId), modesPromise)
-
-      figma.ui.postMessage({ type: 'theme-tree', tree: themeTree });
-    }
   } 
 
   // Make sure to close the plugin when you're done. Otherwise the plugin will
