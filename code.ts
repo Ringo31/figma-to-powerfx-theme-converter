@@ -82,7 +82,7 @@ function displayFormattedJSON(jsonTree: any) {
   return output
 }
 
-async function generateVariableTree(_collectionId: string) {
+async function generateVariableTree(_collectionId: string, groupByModes: Boolean) {
   
   const collection = await figma.variables.getVariableCollectionByIdAsync(_collectionId);
   const jsonTree = {};
@@ -93,21 +93,20 @@ async function generateVariableTree(_collectionId: string) {
     for (const variableId of collection?.variableIds) {
       //console.log(variableId)
       const variable = await figma.variables.getVariableByIdAsync(variableId);
-      
-      //let variableData;
 
-      if (variable?.resolvedType === 'COLOR' && collection.modes.length > 1) {
+      if (collection.modes.length > 1) {
         variableData = {};
         for (const mode of collection.modes) {
-          const modeValue = variable?.valuesByMode[mode.modeId];
+          const modeValue = variable?.valuesByMode[mode.modeId]!;
 
           if (isTypeVariableAlias(modeValue)) {
             variableData[mode.name] = await resolveAlias(modeValue)
-          } else if (isTypeRGBA(modeValue)){
+          } else {
             variableData[mode.name] = getVariableValue(modeValue);
           }
         }
-      } else {
+      }
+      else {
         const modeValue = variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]]!;
         if (isTypeVariableAlias(modeValue)) {
           variableData = await resolveAlias(modeValue)
@@ -120,15 +119,41 @@ async function generateVariableTree(_collectionId: string) {
       let currentLevel: any = jsonTree;
 
       // Créer la structure hiérarchique
-      path?.forEach((key, index) => {
-        if (!currentLevel[key]) {
-            currentLevel[key] = (index === path.length - 1) ? variableData : {};
+      if(collection.modes.length > 1 && groupByModes) {
+         // On place les modes au deuxième niveau
+        const topCategory = path?.shift()!; // Supprime le premier élément et le stocke
+
+        if (!currentLevel[topCategory]) {
+            currentLevel[topCategory] = {};
         }
-        currentLevel = currentLevel[key];
-      });
+
+        currentLevel = currentLevel[topCategory]; // Naviguer au niveau de la catégorie principale
+
+        collection.modes.forEach((mode) => {
+          if (!currentLevel[mode.name]) {
+            currentLevel[mode.name] = {};
+          }
+
+          let modeLevel = currentLevel[mode.name];
+          // Pour chaque segment du chemin, créez des niveaux hiérarchiques
+          path?.forEach((key, index) => {
+            if (!modeLevel[key]) {
+              modeLevel[key] = index === path.length - 1 ? variableData[mode.name] : {};
+            }
+            modeLevel = modeLevel[key];
+          });
+        })
+      } else {
+        path?.forEach((key, index) => {
+          if (!currentLevel[key]) {
+              currentLevel[key] = (index === path.length - 1) ? variableData : {};
+          }
+          currentLevel = currentLevel[key];
+        });
+      }
     }
   }
-
+  //return JSON.stringify(jsonTree, null, 2);
   return displayFormattedJSON(jsonTree)
 }
 
@@ -154,8 +179,8 @@ figma.ui.onmessage = async (msg) => {
   // One way of distinguishing between different types of messages sent from
   // your HTML page is to use an object with a "type" property like this.
   if (msg.type = 'convert-theme') {
-
-    const themeTree = await generateVariableTree(msg.collectionId);
+    const groupByModes = msg.groupBy === 'mode';
+    const themeTree = await generateVariableTree(msg.collectionId, groupByModes);
     figma.ui.postMessage({ type: 'theme-tree', tree: themeTree });
     
   } 
