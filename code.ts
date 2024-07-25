@@ -6,7 +6,7 @@
 // You can access browser APIs in the <script> tag inside "ui.html" which has a
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 // This shows the HTML page in "ui.html".
-figma.showUI(__html__, {width: 600, height: 400});
+figma.showUI(__html__, {width: 400, height: 500});
 
 function toPascalCase(input: string): string {
   return input
