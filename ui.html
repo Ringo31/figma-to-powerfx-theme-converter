@@ -2,39 +2,57 @@
 <head>
   <meta charset="utf-8">
   <title>Figma to PowerFX Theme Converter</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 16px;
-    }
-    textarea {
-      width: 100%;
-      height: 200px;
-      margin-top: 10px;
-    }
-    button {
-      margin-top: 20px;
-    }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h2>Convertir les variables de thème Figma en PowerFX</h2>
-  <select id="variable-collections"></select>
-  <textarea id="output" readonly></textarea>
-  <br/>
-  <button id="convert-button">Convertir les variables</button>
+<body class="bg-gray-50 ">
+
+  <div class="max-w-ld mx-auto bg-white">
+
+    <div class="h-full grid grid-cols-3 gap-4">
+      
+      <div class="p-4 col-span-1 space-y-4">
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700" for="variable-collections">Collection</label>
+          <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" id="variable-collections"></select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700" for="variable-collections">Groupe</label>
+          <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" id="variable-groupby">
+            <option value="variant">Variant</option>
+            <option value="mode">Mode</option>
+          </select>
+        </div>
+
+      </div>
+      
+      <div class="p-4 col-span-2">
+        <label for="output" class="block text-sm font-medium text-gray-700">Résultat de la requête</label>
+        <textarea class="min-h-full p-2 mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm resize-none" " id="output" readonly></textarea>
+      </div>
+      
+    </div>
+
+  </div>
+  
+  
 
   <script>
-    const convertButton = document.getElementById('convert-button');
-    convertButton.onclick = () => {
-      parent.postMessage({ pluginMessage: { type: 'convert-variables' } }, '*');
-    }
 
     // Écouteur pour le changement de sélection dans le menu déroulant
     document.getElementById('variable-collections').addEventListener('change', (event) => {
       const selectedCollectionId = event.target.value;
-      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId } }, '*');
+      const selectedGroupby = document.getElementById('variable-groupby').value;
+      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: selectedGroupby } }, '*');
     });
+
+    // Ecouteur pour le changement de sélection dans le choix du groupement
+    document.getElementById('variable-groupby').addEventListener('change', (event) => {
+      const selectedCollectionId = document.getElementById('variable-collections').value
+      const selectedGroupby = event.target.value;
+      parent.postMessage({ pluginMessage: { type:'convert-variables', collectionId: selectedCollectionId, groupBy: selectedGroupby} }, '*')
+    })
 
     onmessage = (event) => {
       const message = event.data.pluginMessage;
@@ -59,8 +77,13 @@
         // Générer le code de la première collection par défaut si elle existe
         if (message.collections.length > 0) {
           const firstCollectionId = message.collections[0].id;
-          parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId } }, '*');
+          const selectedGroupby = document.getElementById('variable-groupby').value;
+          parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId, groupBy: selectedGroupby } }, '*');
         }
+      }
+
+      if (message.type === 'theme-tree') {
+        document.getElementById('output').textContent = message.tree;
       }
     }
   </script>
