@@ -214,7 +214,8 @@ const sendCollectionsList = async () => {
     const collectionsList = variableCollections.map(collection => ({
       id: collection.id,
       name: collection.name,
-      modes: collection.modes
+      modes: collection.modes,
+      modesLenght: collection.modes.length
     }));
 
     figma.ui.postMessage({

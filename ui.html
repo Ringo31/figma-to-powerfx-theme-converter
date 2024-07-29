@@ -79,7 +79,7 @@
         message.collections.forEach(collection => {
           const option = document.createElement('option');
           option.value = collection.id;
-          //option.setAttribute('data-modesNumber', collection.modes.length);
+          option.setAttribute('data-modesLenght', collection.modesLenght);
           option.textContent = collection.name;
           selectElement.appendChild(option);
         });
