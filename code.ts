@@ -6,7 +6,7 @@
 // You can access browser APIs in the <script> tag inside "ui.html" which has a
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 // This shows the HTML page in "ui.html".
-figma.showUI(__html__, {width: 400, height: 500});
+figma.showUI(__html__, {width: 650, height: 500});
 
 function toPascalCase(input: string): string {
   return input
@@ -39,7 +39,7 @@ async function resolveAlias(_variableAlias: any) {
 
 }
 
-function customJSONStringify(obj: any, level=0, _groupByModes: Boolean) {
+function customJSONStringify(obj: any, level=0, _groupByModes: Boolean, _varName: string) {
   const indent = ' '.repeat(level * 4); // Indentation d'une tabulation par niveau
   const lastIndent = ' '.repeat((level-1) * 4);
   const entries = Object.entries(obj);
@@ -51,7 +51,7 @@ function customJSONStringify(obj: any, level=0, _groupByModes: Boolean) {
 
   let result = ''
   if(level === 1 && _groupByModes) {
-    result = 'Switch(varTheme,\n'
+    result = `Switch(${_varName},\n`
   } else {
     result = `{\n`;
   }
@@ -61,7 +61,7 @@ function customJSONStringify(obj: any, level=0, _groupByModes: Boolean) {
       const keyRepresentation = `${toPascalCase(key)}`;
 
       // Générer la chaîne formatée pour chaque sous-arbre ou valeur
-      const valueRepresentation = customJSONStringify(value, level + 1, _groupByModes);
+      const valueRepresentation = customJSONStringify(value, level + 1, _groupByModes, _varName);
 
       // Déterminer si c'est la dernière entrée
       const isLastEntry = index === entries.length - 1;
@@ -83,20 +83,20 @@ function customJSONStringify(obj: any, level=0, _groupByModes: Boolean) {
   return result;
 }
 
-function displayFormattedJSON(jsonTree: any, _groupByModes: Boolean) {
+function displayFormattedJSON(jsonTree: any, _groupByModes: Boolean, _varName: string) {
   let output = '';
 
   // Parcourir chaque catégorie au niveau supérieur
   for (const [category, subtree] of Object.entries(jsonTree)) {
       output += `Set( tk${category}, `;
-      output += customJSONStringify(subtree, 1, _groupByModes);
+      output += customJSONStringify(subtree, 1, _groupByModes, _varName);
       output += `);\n\n`;
   }
 
   return output
 }
 
-async function generateVariableTree(_collectionId: string, groupByModes: Boolean) {
+async function generateVariableTree(_collectionId: string, groupByModes: Boolean, _varName: string) {
   
   const collection = await figma.variables.getVariableCollectionByIdAsync(_collectionId);
   const jsonTree = {};
@@ -167,7 +167,7 @@ async function generateVariableTree(_collectionId: string, groupByModes: Boolean
     }
   }
   //return JSON.stringify(jsonTree, null, 2);
-  return displayFormattedJSON(jsonTree, groupByModes)
+  return displayFormattedJSON(jsonTree, groupByModes, _varName)
 }
 
 // Fonctions pour vérifier le type des variables
@@ -192,7 +192,7 @@ figma.ui.onmessage = async (msg) => {
   // your HTML page is to use an object with a "type" property like this.
   if (msg.type = 'convert-theme') {
     const groupByModes = msg.groupBy === 'mode';
-    const themeTree = await generateVariableTree(msg.collectionId, groupByModes);
+    const themeTree = await generateVariableTree(msg.collectionId, groupByModes, msg.varName);
     figma.ui.postMessage({ type: 'theme-tree', tree: themeTree });
     
   } 
@@ -214,7 +214,8 @@ const sendCollectionsList = async () => {
     const collectionsList = variableCollections.map(collection => ({
       id: collection.id,
       name: collection.name,
-      modes: collection.modes
+      modes: collection.modes,
+      modesLenght: collection.modes.length
     }));
 
     figma.ui.postMessage({
