@@ -4,55 +4,64 @@
   <title>Figma to PowerFX Theme Converter</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 ">
+<body class="bg-gray-50">
 
-  <div class="max-w-ld mx-auto bg-white">
+  <div class="h-dvh grid grid-cols-3 gap-4 font-mono text-gray-700">
+    
+    <div class="p-4 col-span-1 space-y-4">
 
-    <div class="h-full grid grid-cols-3 gap-4">
-      
-      <div class="p-4 col-span-1 space-y-4">
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700" for="variable-collections">Collection</label>
-          <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" id="variable-collections"></select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700" for="variable-collections">Groupe</label>
-          <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" id="variable-groupby">
-            <option value="variant">Variant</option>
-            <option value="mode">Mode</option>
-          </select>
-        </div>
-
+      <div class="felx">
+        <label class="block text-sm font-medium text-gray-700" for="variable-collections">Collection</label>
+        <select class="mt-1 block w-full rounded-md border border-purple-300 focus:outline-purple-700 shadow-sm sm:text-sm" id="variable-collections" onchange="selectHandler()"></select>
       </div>
-      
-      <div class="p-4 col-span-2">
-        <label for="output" class="block text-sm font-medium text-gray-700">Résultat de la requête</label>
-        <textarea class="min-h-full p-2 mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm resize-none" " id="output" readonly></textarea>
+
+      <div>
+        <label for="switch-checkbox" class="text-sm font-medium">Inclure un Switch</label>
+        <input id="switch-checkbox" type="checkbox" onclick="checkboxHandler()">
+        <div id="variable-container" class="invisible" >
+          <input id="variable-name" class="w-full px-1 mt-1 rounded-md border border-purple-300 focus:outline-purple-700 shadow-sm sm:text-sm" type="text" spellcheck="false" value="varMode" onchange="inputHandler()">
+        </div>
       </div>
+
       
+
     </div>
-
+    
+    <div class="flex flex-col p-4 col-span-2">
+      <label for="output" class="block text-sm font-medium">Résultat de la requête</label>
+      <textarea class="flex-1 w-full p-2 mt-1 rounded-md border border-purple-300 focus:outline-purple-700 shadow-sm text-xs resize-none" wrap="off" id="output" readonly></textarea>
+    </div>
+    
   </div>
   
   
 
   <script>
-
-    // Écouteur pour le changement de sélection dans le menu déroulant
-    document.getElementById('variable-collections').addEventListener('change', (event) => {
-      const selectedCollectionId = event.target.value;
-      const selectedGroupby = document.getElementById('variable-groupby').value;
-      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: selectedGroupby } }, '*');
-    });
-
-    // Ecouteur pour le changement de sélection dans le choix du groupement
-    document.getElementById('variable-groupby').addEventListener('change', (event) => {
+    function checkboxHandler() {
+      const checkboxValue = document.getElementById('switch-checkbox').checked;
       const selectedCollectionId = document.getElementById('variable-collections').value
-      const selectedGroupby = event.target.value;
-      parent.postMessage({ pluginMessage: { type:'convert-variables', collectionId: selectedCollectionId, groupBy: selectedGroupby} }, '*')
-    })
+      const varName = document.getElementById('variable-name').value;
+      if (checkboxValue) {
+        document.getElementById('variable-container').classList.replace("invisible", "visible")
+        parent.postMessage({pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: "mode", varName: varName }}, '*')
+      } else {
+        document.getElementById('variable-container').classList.replace("visible", "invisible")
+        parent.postMessage({pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: "variant" }}, '*')
+      }
+    }
+
+    function selectHandler() {
+      const selectedCollectionId = document.getElementById('variable-collections').value;
+      const selectedGroupby = document.getElementById('switch-checkbox').checked /*&& (selectedCollection.dataset.modesNumber > 1)*/ ? "mode" : "variant"
+      const varName = document.getElementById('variable-name').value;
+      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: selectedGroupby, varName: varName } }, '*');;
+    }
+
+    function inputHandler() {
+      const varName = document.getElementById('variable-name').value;
+      const selectedCollectionId = document.getElementById('variable-collections').value;
+      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: "mode", varName: varName } }, '*')
+    }
 
     onmessage = (event) => {
       const message = event.data.pluginMessage;
@@ -70,6 +79,7 @@
         message.collections.forEach(collection => {
           const option = document.createElement('option');
           option.value = collection.id;
+          //option.setAttribute('data-modesNumber', collection.modes.length);
           option.textContent = collection.name;
           selectElement.appendChild(option);
         });
@@ -77,8 +87,7 @@
         // Générer le code de la première collection par défaut si elle existe
         if (message.collections.length > 0) {
           const firstCollectionId = message.collections[0].id;
-          const selectedGroupby = document.getElementById('variable-groupby').value;
-          parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId, groupBy: selectedGroupby } }, '*');
+          parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId, groupBy: "variant" } }, '*');
         }
       }
 
