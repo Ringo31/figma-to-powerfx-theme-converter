@@ -39,7 +39,7 @@ async function resolveAlias(_variableAlias: any) {
 
 }
 
-function customJSONStringify(obj: any, level=0, _groupByModes: Boolean, _varName: string) {
+function customJSONStringify(obj: any, level=0, _groupByModes: boolean, _varName: string) {
   const indent = ' '.repeat(level * 4); // Indentation d'une tabulation par niveau
   const lastIndent = ' '.repeat((level-1) * 4);
   const entries = Object.entries(obj);
@@ -83,7 +83,7 @@ function customJSONStringify(obj: any, level=0, _groupByModes: Boolean, _varName
   return result;
 }
 
-function displayFormattedJSON(jsonTree: any, _groupByModes: Boolean, _varName: string) {
+function displayFormattedJSON(jsonTree: any, _groupByModes: boolean, _varName: string) {
   let output = '';
 
   // Parcourir chaque catégorie au niveau supérieur
@@ -96,7 +96,7 @@ function displayFormattedJSON(jsonTree: any, _groupByModes: Boolean, _varName: s
   return output
 }
 
-async function generateVariableTree(_collectionId: string, groupByModes: Boolean, _varName: string) {
+async function generateVariableTree(_collectionId: string, groupByModes: boolean, _varName: string) {
   
   const collection = await figma.variables.getVariableCollectionByIdAsync(_collectionId);
   const jsonTree = {};
@@ -201,11 +201,6 @@ figma.ui.onmessage = async (msg) => {
   // keep running, which shows the cancel button at the bottom of the screen.
   //figma.closePlugin();
 };
-
-async function getCollectionById(collectionId: string): Promise<VariableCollection> {
-  const collection = await figma.variables.getVariableCollectionByIdAsync(collectionId);
-  return collection!
-}
 
 
 const sendCollectionsList = async () => {
