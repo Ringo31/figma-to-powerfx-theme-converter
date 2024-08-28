@@ -15,15 +15,18 @@
         <select class="flex-1 mt-1 rounded-md border border-purple-300 focus:outline-purple-700 shadow-sm sm:text-sm" id="variable-collections" onchange="selectHandler()"></select>
       </div>
 
-      <div class="flex flex-col">
+      <!-- <div class="flex flex-col">
         <div class="flex flex-row">
           <label class="flex-1" for="switch-checkbox" class="text-sm font-medium">Include Switch</label>
           <input class="mx-2" id="switch-checkbox" type="checkbox" onclick="checkboxHandler()">
         </div>
         <div class="flex-1" id="variable-container" class="invisible" >
           <input id="variable-name" class="w-full px-1 mt-1 rounded-md border border-purple-300 focus:outline-purple-700 shadow-sm sm:text-sm" type="text" spellcheck="false" value="varMode" onchange="inputHandler()">
-        </div>
-      </div>
+        </div>s
+      </div> -->
+
+      <!-- TODO table qui contient les éléments de premier niveau de la collection sélectionnée. Une colonne pour le nom de l'element, une autre un checkbox qui indique si l'element est sélectionné -->
+      <table id="token-table"></table>
 
       
 
@@ -43,52 +46,44 @@
   
 
   <script>
+
     function checkboxHandler() {
-      const checkboxValue = document.getElementById('switch-checkbox').checked;
-      const selectedCollectionId = document.getElementById('variable-collections').value
-      const varName = document.getElementById('variable-name').value;
-      if (checkboxValue) {
-        document.getElementById('variable-container').classList.replace("invisible", "visible")
-        parent.postMessage({pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: "mode", varName: varName }}, '*')
-      } else {
-        document.getElementById('variable-container').classList.replace("visible", "invisible")
-        parent.postMessage({pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: "variant" }}, '*')
-      }
+      // Get an array of booleans indicating whether each checkbox is checked or not
+      const tokenParams = Array.prototype.map.call(document.getElementById('token-table').querySelectorAll("input[type=checkbox]"), checkbox => { return {tokenName: checkbox.id, groupByModes: checkbox.checked} });
+
+      // Get the selected collection
+      const collectionId = document.getElementById('variable-collections').value
+
+      // Send the message to the main script
+      parent.postMessage({ pluginMessage: { type : 'requestDisplay', collectionId : collectionId, tokenParams: tokenParams } }, '*');  
     }
 
     function selectHandler() {
-      const selectedCollectionId = document.getElementById('variable-collections').value;
-      const selectedGroupby = document.getElementById('switch-checkbox').checked /*&& (selectedCollection.dataset.modesNumber > 1)*/ ? "mode" : "variant"
-      const varName = document.getElementById('variable-name').value;
-      parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: selectedGroupby, varName: varName } }, '*');;
-    }
 
-    function inputHandler() {
+      // Get the selected collection
+      const collectionId = document.getElementById('variable-collections').value
+
+      // Send the message to the main script
+      parent.postMessage({ pluginMessage: { type : 'requestCollection', collectionId: collectionId } }, '*');
+    }
+   
+
+    /* function inputHandler() {
       const varName = document.getElementById('variable-name').value;
       const selectedCollectionId = document.getElementById('variable-collections').value;
       parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: selectedCollectionId, groupBy: "mode", varName: varName } }, '*')
-    }
-
-    /* async function copyToClipboard() {
-      const output = await document.getElementById('output').innerHTML;
-      window.navigator.clipboard.writeText(output)
-        .then(() => {
-          alert("Thème copié.");
-        })
-        .catch(() => {
-          alert("Erreur en essayant de copier le thème.");
-        });
     } */
 
+
+    /**
+     * Handler for messages sent from the main script to the UI script.
+     * @param {MessageEvent} event - The message event containing the plugin message.
+     */
     onmessage = (event) => {
       const message = event.data.pluginMessage;
 
-      if(message.type === 'converted-variables') {
-        const textareaContainer = document.getElementById('output');
-        output.innerHTML = message.variables;
-      }
+      if (message.type === 'sendCollectionsList') {
 
-      if (message.type === 'collections-list') {
         // Remplir le menu déroulant avec les collections
         const selectElement = document.getElementById('variable-collections');
         selectElement.innerHTML = ''; // Réinitialiser les options
@@ -104,12 +99,51 @@
         // Générer le code de la première collection par défaut si elle existe
         if (message.collections.length > 0) {
           const firstCollectionId = message.collections[0].id;
-          parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId, groupBy: "variant" } }, '*');
+          //parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId, groupBy: "variant" } }, '*');
+          parent.postMessage({ pluginMessage: { type : 'requestCollection', collectionId: firstCollectionId } }, '*');
         }
       }
 
-      if (message.type === 'theme-tree') {
-        document.getElementById('output').textContent = message.tree;
+      if (message.type === 'sendTokensList') {
+        // Remplir le table avec la liste des tokens
+        const tableBody = document.getElementById('token-table');
+
+        // Clear the table body
+        tableBody.innerHTML = '';
+
+        // Create a row for each token
+        message.tokensList.forEach(token => {
+          
+          // Create a row
+          const row = document.createElement('tr');
+
+          // Create a cell for the token name
+          const nameCell = document.createElement('td');
+          nameCell.innerText = token;
+          row.appendChild(nameCell);
+
+          // Create a cell for the checkbox
+          const valueCell = document.createElement('td');
+          valueCell.innerHTML = `<input type="checkbox" id="${token}" name="switch" class="switch" onclick="checkboxHandler()" /><label for="${token}" class="switch-label"></label>`
+          row.appendChild(valueCell);
+
+          // Add the row to the table
+          tableBody.appendChild(row);
+        });
+
+        // Initialize the tokenParams array
+        //const tokenParams = new Array(message.tokensList.length).fill(false);
+        const tokenParams = message.tokensList.map(token => ({ tokenName: token, groupByModes: false }));
+        
+        // Get the selected collection
+        const collectionId = document.getElementById('variable-collections').value
+
+        // Send the message to the main script
+        parent.postMessage({ pluginMessage: { type : 'requestDisplay', collectionId : collectionId, tokenParams: tokenParams } }, '*');
+      }
+
+      if (message.type === 'sendDisplay') {
+        document.getElementById('output').textContent = message.displayTree;
       }
     }
   </script>
