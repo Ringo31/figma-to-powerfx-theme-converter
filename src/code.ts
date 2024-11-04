@@ -2,67 +2,72 @@ import { resolveAlias } from "./utils/figma-utils";
 import { isTypeVariableAlias, getFormattedVariableValue, toOneWord } from "./utils/variable-utils";
 
 // This shows the HTML page in "ui.html".
-figma.showUI(__html__, {width: 650, height: 500});
+figma.showUI(__html__, {width: 750, height: 500});
 
-function customJSONStringify(json: any, level: number = 0) {
-  console.log(`Entering customJSONStringify with json: ${JSON.stringify(json)} and level: ${level}`);
-  //return JSON.stringify(_json, null, 4)
+function customJSONStringify(json: any, level: number = 1, groupByModes: boolean = false, switchName: string = '') {
+  
   let output = '';
   const indent = ' '.repeat(level * 4);
+  const lastIndent = ' '.repeat((level - 1) * 4);
   const entries = Object.entries(json);
 
   const isLeaf = typeof json != 'object' || json instanceof Array || json === null || entries.length === 0
 
   if (isLeaf) {
-    console.log(`Returning from customJSONStringify with leaf value: ${json}`);
     return /\d/.test(json) ? `${json}` : `"${json}"`
   }
 
-  console.log(`Entering customJSONStringify with value: ${JSON.stringify(entries)} and level: ${level + 1}`);
-  entries.forEach(([key, value] : [string, any], index : number) => {
-    const keyRepresentation = toOneWord(key)
+  if(level === 1 && groupByModes) {
+    entries.forEach(([key, value] : [string, any], index : number) => {
+      const keyRepresentation = `"${toOneWord(key)}"`
 
-    console.log(`Entering customJSONStringify with value: ${JSON.stringify(value)} and level: ${level + 1}`);
-    const valueRepresentation = customJSONStringify(value, level + 1);
+      const valueRepresentation = customJSONStringify(value, level + 1);
 
-    console.log(`Returning from customJSONStringify with valueRepresentation: ${valueRepresentation}`);
+      const isLastEntry = index === entries.length - 1
 
-    const isLastEntry = index === entries.length - 1
+      output += `${indent}${keyRepresentation},\n${indent}${valueRepresentation}${isLastEntry ? '' : ','}\n`
+    });
 
-    output += `${indent}${keyRepresentation}: ${valueRepresentation}${isLastEntry ? '' : ','}\n`
-  });
+    return `${switchName},\n${output}${lastIndent}`
 
-  console.log(`Returning from customJSONStringify with final output: ${output}`);
+  } else {
+    entries.forEach(([key, value] : [string, any], index : number) => {
+      const keyRepresentation = toOneWord(key)
 
-  return `{\n${output}}`
+      const valueRepresentation = customJSONStringify(value, level + 1);
+
+      const isLastEntry = index === entries.length - 1
+
+      output += `${indent}${keyRepresentation}: ${valueRepresentation}${isLastEntry ? '' : ','}\n`
+    });
+
+    return `{\n${output}${lastIndent}}`
+  }
+  
+  
+    
 }
 
 
-function displayFormattedJSON(_jsonArray: { [x: string]: unknown; }[], _tokenParams: {tokenName: string, groupByModes: boolean }[]) {
+function displayFormattedJSON(_jsonArray: { [x: string]: unknown; }[], _tokenParams: {tokenName: string, groupByModes: boolean, switchName: string }[]) {
   let output = '';
 
   _jsonArray.forEach((json, index) => {
     output+=`Set( tk${Object.keys(json)[0]}, ${_tokenParams[index].groupByModes ? `Switch(${
       // Display json from the second level without quotes
       //JSON.stringify(Object.values(json)[0], null, 4).replace(/"([^"]*)":/g, '$1:').replace(/"/g, '')
-      customJSONStringify(Object.values(json)[0], 0)
+      customJSONStringify(Object.values(json)[0], 1, true, _tokenParams[index].switchName)
     })` :
     `${
       //JSON.stringify(Object.values(json)[0], null, 4).replace(/"([^"]*)":/g, '$1:').replace(/"/g, '')
-      customJSONStringify(Object.values(json)[0], 0)
-    }`}\n});\n\n`
+      customJSONStringify(Object.values(json)[0], 1, false)
+    }`});\n\n`
   })
-
- /*  _jsonArray.forEach((json, index) => {
-    output+=`Set( tk${Object.keys(json)[0]}, 
-      ${customJSONStringify(_jsonArray, _tokenParams)}
-    );\n\n`
-  }) */
 
   return output
 }
 
-async function generateVariableTree2(_collectionId: string, tokenParams: {tokenName: string, groupByModes: boolean }[]): Promise<{ [x: string]: unknown; }[]> {
+async function generateVariableTree2(_collectionId: string, tokenParams: {tokenName: string, groupByModes: boolean, switchName: string}[]): Promise<{ [x: string]: unknown; }[]> {
   
   const collection = await figma.variables.getVariableCollectionByIdAsync(_collectionId);
   const trees: { [x:string]: unknown; }[] = [];
@@ -170,11 +175,12 @@ async function generateFirstLevelVariableTree(_collectionId: string): Promise<st
 
 
 figma.ui.onmessage = async (msg) => {
+  console.log(msg);
   if (msg.type === 'requestCollection') {
     const collectionId = msg.collectionId;
 
     const tokensList = await generateFirstLevelVariableTree(collectionId);
-    const tokenParams = tokensList.map(token => ({ tokenName: token, groupByModes: false }));
+    //const tokenParams = tokensList.map(token => ({ tokenName: token, groupByModes: false, switchName: '' }));
     figma.ui.postMessage({ type : 'sendTokensList', tokensList: tokensList });
   }
 
