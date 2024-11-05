@@ -146,7 +146,7 @@ export async function generateVariableTree(_collectionId: string, tokenParams: {
     return trees;
 }
 
-export async function generateFirstLevelVariableTree(_collectionId: string): Promise<string[]> {
+export async function getCollectionTokens(_collectionId: string): Promise<string[]> {
     const collection = await figma.variables.getVariableCollectionByIdAsync(_collectionId);
     const firstLevelVariables: string[] = [];
 

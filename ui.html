@@ -73,7 +73,7 @@
       const collectionId = document.getElementById('variable-collections').value
 
       // Send the message to the main script
-      parent.postMessage({ pluginMessage: { type : 'REQUEST_COLLECTION', collectionId: collectionId } }, '*');
+      parent.postMessage({ pluginMessage: { type : 'REQUEST_COLLECTION_TOKENS', collectionId: collectionId } }, '*');
     }
 /* 
     function inputHandler() {
@@ -99,106 +99,97 @@
       parent.postMessage({ pluginMessage: { type : 'REQUEST_DISPLAY', tokenParams: tokenParams, collectionId: collectionId } }, '*');
     }
 
-    /**
-     * Handler for messages sent from the main script to the UI script.
-     * @param {MessageEvent} event - The message event containing the plugin message.
-     */
+    /* Listen for messages from the main script */
     onmessage = (event) => {
       const message = event.data.pluginMessage;
 
-      if (message.type === 'SEND_COLLECTIONS_ARRAY') {
-        // Remplir le menu déroulant avec les collections
+      /* Handle the collection array response from the main script */
+      if (message.type === 'SEND_COLLECTION_ARRAY') {
+        
+        /* Populate the select element with the list of collections */
         const selectElement = document.getElementById('variable-collections');
-        selectElement.innerHTML = ''; // Réinitialiser les options
+        selectElement.innerHTML = '';
 
+        /* Add an option in the select for each collection */
         message.variableCollectionArray.forEach(variableCollection => {
-          
           const option = document.createElement('option');
           option.value = variableCollection.id;
-          option.setAttribute('data-modesLenght', variableCollection.modes.length);
+          //option.setAttribute('data-modesLenght', variableCollection.modes.length);
           option.textContent = variableCollection.name;
           selectElement.appendChild(option);
         });
-        // Générer le code de la première collection par défaut si elle existe
+
+        /* Select the first collection in the list and request its tokens */
         if (message.variableCollectionArray.length > 0) {
           const firstCollectionId = message.variableCollectionArray[0].id;
-          parent.postMessage({ pluginMessage: { type : 'REQUEST_COLLECTION', collectionId: firstCollectionId } }, '*');
+          parent.postMessage({ pluginMessage: { type : 'REQUEST_COLLECTION_TOKENS', collectionId: firstCollectionId } }, '*');
         }
       }
 
-      if (message.type === 'SEND_TOKENS_LIST') {
-        // Remplir le table avec la liste des tokens
-        const tableBody = document.getElementById('token-table');
+      /* Handle the collection tokens response from the main script: Generate a table with the list of tokens for the selected collection */
+      if (message.type === 'SEND_COLLECTION_TOKENS') {
 
-        // Clear the table body
+        /* Step 1 : Generate a table with the list of tokens for the selected collection */
+        
+        /* Get the table body and clear it */
+        const tableBody = document.getElementById('token-table');
         tableBody.innerHTML = '';
 
-        // Create a row for each token
-        message.tokensList.forEach(token => {
-          
-          // Create a row
+        /* Create new a row for each token */
+        message.collectionTokens.forEach(token => {
           const row = document.createElement('tr');
-          //row.style.display = 'flex';
-          //row.style.paddingLeft = '100px';
-          //row.style.flexDirection = 'row';
 
-
-          // Create a cell for the checkbox
+          /* Create a cell for the checkbox */
           const valueCell = document.createElement('td');
-          //valueCell.style.flex = '1';
           valueCell.style.padding = '0.25rem';
-
           const valueCellCheckbox = document.createElement('input');
           valueCellCheckbox.type = 'checkbox';
           valueCellCheckbox.id = token;
           valueCellCheckbox.onclick = tableHandler;
-
           valueCell.appendChild(valueCellCheckbox);
 
+          /* Append the checkbox cell to the row */
           row.appendChild(valueCell);
 
-          // Create a cell for the token name
+          /* Create a cell for the token name */
           const nameCell = document.createElement('td');
           nameCell.innerText = token;
-          //nameCell.style.flex = '1';
           nameCell.style.fontSize = '0.75rem';
+
+          /* Append the name cell to the row */
           row.appendChild(nameCell);
 
-          // Create a cell for the switch name
+          /* Create a cell for the switch name */
           const switchNameCell = document.createElement('td');
           switchNameCell.style.flex = '1';
           switchNameCell.style.padding = '0.25rem';
-
           const switchNameInput = document.createElement('input');
           switchNameInput.type = 'text';
           switchNameInput.style.width = '100%';
-          //switchNameInput.style.margin = '0.25rem';
           switchNameInput.style.backgroundColor = '#f5f5f5';
           switchNameInput.style.fontSize = '0.75rem';
           switchNameInput.style.padding = '0.25rem';
           switchNameInput.style.borderRadius = '0.25rem';
-
           switchNameInput.onchange = tableHandler;
-
           switchNameCell.appendChild(switchNameInput);
           
+          /* Append the switch name cell to the row */
           row.appendChild(switchNameCell);
 
-          // Add the row to the table
+          /* Add the row to the table body */
           tableBody.appendChild(row);
         });
 
-        // Initialize the tokenParams array
-        //const tokenParams = new Array(message.tokensList.length).fill(false);
-        const tokenParams = message.tokensList.map(token => ({ tokenName: token, groupByModes: false, switchName: '' }));
+
+        /* Step 2 : Request the display for the selected collection with the list of tokens */
         
-        // Get the selected collection
+        const tokenParams = message.collectionTokens.map(token => ({ tokenName: token, groupByModes: false, switchName: '' }));
         const collectionId = document.getElementById('variable-collections').value
 
-        // Send the message to the main script
         parent.postMessage({ pluginMessage: { type : 'REQUEST_DISPLAY', collectionId : collectionId, tokenParams: tokenParams } }, '*');
       }
 
+      /* Handle the display response from the main script: Display the generated display tree in the UI */
       if (message.type === 'SEND_DISPLAY') {
         document.getElementById('output').textContent = message.displayTree;
       }
