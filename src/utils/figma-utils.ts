@@ -1,5 +1,14 @@
 import { getFormattedVariableValue, isTypeVariableAlias } from "./variable-utils";
 
+export async function getVariableCollectionArray() {
+  const variableCollectionArray = (await figma.variables.getLocalVariableCollectionsAsync()).map(collection => ({
+    id: collection.id,
+    name: collection.name,
+    modes: collection.modes
+  }));
+  return variableCollectionArray;
+}
+
 /**
  * Resolves a variable alias in Figma by recursively looking up its actual value.
  * 

@@ -73,7 +73,7 @@
       const collectionId = document.getElementById('variable-collections').value
 
       // Send the message to the main script
-      parent.postMessage({ pluginMessage: { type : 'requestCollection', collectionId: collectionId } }, '*');
+      parent.postMessage({ pluginMessage: { type : 'REQUEST_COLLECTION', collectionId: collectionId } }, '*');
     }
 /* 
     function inputHandler() {
@@ -96,7 +96,7 @@
         }
       });
       console.log(tokenParams)
-      parent.postMessage({ pluginMessage: { type : 'requestDisplay', tokenParams: tokenParams, collectionId: collectionId } }, '*');
+      parent.postMessage({ pluginMessage: { type : 'REQUEST_DISPLAY', tokenParams: tokenParams, collectionId: collectionId } }, '*');
     }
 
     /**
@@ -106,29 +106,27 @@
     onmessage = (event) => {
       const message = event.data.pluginMessage;
 
-      if (message.type === 'sendCollectionsList') {
-
+      if (message.type === 'SEND_COLLECTIONS_ARRAY') {
         // Remplir le menu déroulant avec les collections
         const selectElement = document.getElementById('variable-collections');
         selectElement.innerHTML = ''; // Réinitialiser les options
 
-        message.collections.forEach(collection => {
+        message.variableCollectionArray.forEach(variableCollection => {
+          
           const option = document.createElement('option');
-          option.value = collection.id;
-          option.setAttribute('data-modesLenght', collection.modesLenght);
-          option.textContent = collection.name;
+          option.value = variableCollection.id;
+          option.setAttribute('data-modesLenght', variableCollection.modes.length);
+          option.textContent = variableCollection.name;
           selectElement.appendChild(option);
         });
-
         // Générer le code de la première collection par défaut si elle existe
-        if (message.collections.length > 0) {
-          const firstCollectionId = message.collections[0].id;
-          //parent.postMessage({ pluginMessage: { type: 'convert-variables', collectionId: firstCollectionId, groupBy: "variant" } }, '*');
-          parent.postMessage({ pluginMessage: { type : 'requestCollection', collectionId: firstCollectionId } }, '*');
+        if (message.variableCollectionArray.length > 0) {
+          const firstCollectionId = message.variableCollectionArray[0].id;
+          parent.postMessage({ pluginMessage: { type : 'REQUEST_COLLECTION', collectionId: firstCollectionId } }, '*');
         }
       }
 
-      if (message.type === 'sendTokensList') {
+      if (message.type === 'SEND_TOKENS_LIST') {
         // Remplir le table avec la liste des tokens
         const tableBody = document.getElementById('token-table');
 
@@ -198,10 +196,10 @@
         const collectionId = document.getElementById('variable-collections').value
 
         // Send the message to the main script
-        parent.postMessage({ pluginMessage: { type : 'requestDisplay', collectionId : collectionId, tokenParams: tokenParams } }, '*');
+        parent.postMessage({ pluginMessage: { type : 'REQUEST_DISPLAY', collectionId : collectionId, tokenParams: tokenParams } }, '*');
       }
 
-      if (message.type === 'sendDisplay') {
+      if (message.type === 'SEND_DISPLAY') {
         document.getElementById('output').textContent = message.displayTree;
       }
     }
