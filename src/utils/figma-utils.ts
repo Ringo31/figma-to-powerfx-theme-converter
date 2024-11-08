@@ -1,12 +1,16 @@
 import { getFormattedVariableValue, isTypeVariableAlias } from "./variable-utils";
 
+/**
+ * Fetches all local variable collections from Figma.
+ * @returns An array of variable collections with an id, name, and modes property.
+ * */
 export async function getVariableCollectionArray() {
-  const variableCollectionArray = (await figma.variables.getLocalVariableCollectionsAsync()).map(collection => ({
-    id: collection.id,
-    name: collection.name,
-    modes: collection.modes
-  }));
-  return variableCollectionArray;
+	const variableCollectionArray = (await figma.variables.getLocalVariableCollectionsAsync()).map(collection => ({
+		id: collection.id,
+		name: collection.name,
+		modes: collection.modes
+	}));
+	return variableCollectionArray;
 }
 
 /**
@@ -16,25 +20,25 @@ export async function getVariableCollectionArray() {
  * @returns The resolved value in a formatted string.
  */
 export async function resolveAlias(_variableAlias: any) {
-    // Initialize the resolved value with the input alias
+    /* Initialize the resolved value with the input alias */
     let resolvedValue = _variableAlias
   
-    // Continue resolving until we reach a non-alias value
+    /* Continue resolving until we reach a non-alias value */
     while(isTypeVariableAlias(_variableAlias)) {
-      // Get the ID of the current alias
-      const aliasId = _variableAlias.id;
-  
-      // Fetch the actual variable from Figma using the alias ID
-      _variableAlias = await figma.variables.getVariableByIdAsync(aliasId);
-  
-      // Check if the value of the current variable is not an alias
-      if (!isTypeVariableAlias(_variableAlias.valuesByMode[Object.keys(_variableAlias.valuesByMode)[0]])) {
-        // Format the value of the current variable as a string
-        resolvedValue = getFormattedVariableValue(_variableAlias.valuesByMode[Object.keys(_variableAlias.valuesByMode)[0]])
-      }
+		/* Get the ID of the current alias */
+		const aliasId = _variableAlias.id;
+	
+		/* Fetch the actual variable from Figma using the alias ID */
+		_variableAlias = await figma.variables.getVariableByIdAsync(aliasId);
+	
+		/* Check if the value of the current variable is not an alias */
+		if (!isTypeVariableAlias(_variableAlias.valuesByMode[Object.keys(_variableAlias.valuesByMode)[0]])) {
+			/* Format the value of the current variable as a string */
+			resolvedValue = getFormattedVariableValue(_variableAlias.valuesByMode[Object.keys(_variableAlias.valuesByMode)[0]])
+		}
     }
   
-    // Return the fully resolved value
+    /* Return the fully resolved value */
     return resolvedValue
   
   }
