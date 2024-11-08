@@ -26,7 +26,11 @@ export function toOneWord(inputString: string): string {
 }
 
 
-  // Fonctions pour vérifier le type des variables
+/**
+ * Checks if the given variable value is of type VariableAlias.
+ * @param _variableValue The value to check
+ * @returns 
+ */
 export function isTypeVariableAlias(_variableValue: any): _variableValue is VariableAlias {
     return _variableValue != null 
       && typeof _variableValue === 'object'
