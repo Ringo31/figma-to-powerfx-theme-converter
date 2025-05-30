@@ -1,3 +1,4 @@
+const { watch } = require('fs');
 const path = require('path');
 const webpack = require('webpack');
 
@@ -27,4 +28,5 @@ devtool: argv.mode === 'production' ? false : 'inline-source-map',
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist'),
   },
+  watch: true
 });

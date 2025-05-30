@@ -1,5 +1,6 @@
 import { getFormattedVariableValue, isTypeVariableAlias } from "./variable-utils";
 
+
 /**
  * Fetches all local variable collections from Figma.
  * @returns An array of variable collections with an id, name, and modes property.
@@ -13,12 +14,7 @@ export async function getVariableCollectionArray() {
 	return variableCollectionArray;
 }
 
-/**
- * Resolves a variable alias in Figma by recursively looking up its actual value.
- * 
- * @param _variableAlias The variable alias to resolve.
- * @returns The resolved value in a formatted string.
- */
+/* Resolves a variable alias in Figma by recursively looking up its actual value */
 export async function resolveAlias(_variableAlias: any) {
     /* Initialize the resolved value with the input alias */
     let resolvedValue = _variableAlias
