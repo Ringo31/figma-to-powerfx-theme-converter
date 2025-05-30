@@ -1,6 +1,7 @@
 import { toOneWord, isTypeVariableAlias, getFormattedVariableValue } from "./variable-utils";
 import { resolveAlias } from "./figma-utils";
 
+
 /* Returns an array of all first-level keys in the given variable collection */
 export async function getCollectionTokens(collectionId: string): Promise<string[]> {
     // Get the collection object from Figma
@@ -77,17 +78,15 @@ function customJSONStringify(json: any, level: number = 1, groupByModes: boolean
       
 }
 
-export function displayFormattedJSON(_jsonArray: { [x: string]: unknown; }[], _tokenParams: {tokenName: string, groupByModes: boolean, switchName: string }[]) {
+/* Concatenates a list of JSON objects into a Power Fx variable tree */
+export function displayFormattedJSON(jsonArray: { [x: string]: unknown; }[], tokenParams: {tokenName: string, groupByModes: boolean, switchName: string }[]) {
     let output = '';
 
-    _jsonArray.forEach((json, index) => {
-        output+=`Set( tk${Object.keys(json)[0]}, ${_tokenParams[index].groupByModes ? `Switch(${
-        // Display json from the second level without quotes
-        //JSON.stringify(Object.values(json)[0], null, 4).replace(/"([^"]*)":/g, '$1:').replace(/"/g, '')
-        customJSONStringify(Object.values(json)[0], 1, true, _tokenParams[index].switchName)
+    jsonArray.forEach((json, index) => {
+        output+=`Set( tk${Object.keys(json)[0]}, ${tokenParams[index].groupByModes ? `Switch(${
+        customJSONStringify(Object.values(json)[0], 1, true, tokenParams[index].switchName)
         })` :
         `${
-        //JSON.stringify(Object.values(json)[0], null, 4).replace(/"([^"]*)":/g, '$1:').replace(/"/g, '')
         customJSONStringify(Object.values(json)[0], 1, false)
         }`});\n\n`
     })
@@ -95,86 +94,112 @@ export function displayFormattedJSON(_jsonArray: { [x: string]: unknown; }[], _t
     return output
 }
 
-export async function generateVariableTree(_collectionId: string, tokenParams: {tokenName: string, groupByModes: boolean, switchName: string}[]): Promise<{ [x: string]: unknown; }[]> {
 
-    const collection = await figma.variables.getVariableCollectionByIdAsync(_collectionId);
+/* Generate a json tree of variables from a collection according to the token parameters */
+export async function generateVariableTree(collectionId: string, tokenParams: {tokenName: string, groupByModes: boolean, switchName: string}[]): Promise<{ [x: string]: unknown; }[]> {
+
+    const collection = await figma.variables.getVariableCollectionByIdAsync(collectionId);
     const trees: { [x:string]: unknown; }[] = [];
 
     let variableData: any = {};
 
     if (collection) {
+
+        /* For each variable in the collection */
         for (const variableId of collection?.variableIds) {
-        const variable = await figma.variables.getVariableByIdAsync(variableId);
 
-        // Get the first-level key
-        const firstLevelKey = variable?.name.split('/')[0]!;
+            /* -------------------------------------- */
+            /* Step 1 : Get the token of the variable */
+            /* -------------------------------------- */
 
-        // Find the tokenParams for this subtree
-        const tokenParam = tokenParams.find((param) => param.tokenName === firstLevelKey);
+            /* Get the variable */
+            const variable = await figma.variables.getVariableByIdAsync(variableId);
 
-        // Create a new tree for this first-level key if it doesn't exist
-        if (!trees.find((tree) => Object.keys(tree)[0] === firstLevelKey)) {
-            trees.push({ [firstLevelKey]: {} });
-        }
+            /* Get the parent token of the variable*/
+            const variableToken = variable?.name.split('/')[0]!;
 
-        // On récupère la ou les valeurs de la variable
-        if (collection.modes.length > 1 && tokenParams.find((param) => param.tokenName === firstLevelKey)?.groupByModes) {
-            // On place les modes au deuxième niveau
-            variableData = {};
-            for (const mode of collection.modes) {
-            const modeValue = variable?.valuesByMode[mode.modeId]!;
+            /* Find the token parameter associated */
+            const tokenParam = tokenParams.find((param) => param.tokenName === variableToken);
 
-            if (isTypeVariableAlias(modeValue)) {
-                variableData[mode.name] = await resolveAlias(modeValue)
-            } else {
-                variableData[mode.name] = getFormattedVariableValue(modeValue);
+            /* Create a new tree for this token if it doesn't exist */
+            if (!trees.find((tree) => Object.keys(tree)[0] === variableToken)) {
+                trees.push({ [variableToken]: {} });
             }
 
-            }
-        } else {
-            const modeValue = variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]]!;
-            if (isTypeVariableAlias(modeValue)) {
-            variableData = await resolveAlias(modeValue)
-            } else {
-            variableData = getFormattedVariableValue(modeValue);
-            }
-        }
+            /* ------------------------------ */
+            /* Step 2 : Get the variable data */
+            /* ------------------------------ */
 
-        // On construit la hiérarchie de l'arbre
+            /* Get the variable data */
+            /* If the collection has more than 1 mode and the token parameter is set to true, get the variable data for each mode */
+            if (collection.modes.length > 1 && tokenParams.find((param) => param.tokenName === variableToken)?.groupByModes) {
+                variableData = {};
+                for (const mode of collection.modes) {
+                const modeValue = variable?.valuesByMode[mode.modeId]!;
 
-        // Get the path
-        const path = variable?.name.split('/').slice(1);
-        // Get the current level
-        let currentLevel: any = trees.find((tree) => Object.keys(tree)[0] === firstLevelKey)![firstLevelKey];
-
-        // Créer la structure hiérarchique
-        if(collection.modes.length > 1 && tokenParam?.groupByModes) {
-            
-            collection.modes.forEach((mode) => {
-            if (!currentLevel[mode.name]) {
-                currentLevel[mode.name] = {};
-            }
-
-            let modeLevel = currentLevel[mode.name];
-            // Pour chaque segment du chemin, créez des niveaux hiérarchiques
-            path?.forEach((key, index) => {
-                if (!modeLevel[key]) {
-                modeLevel[key] = index === path.length - 1 ? variableData[mode.name] : {};
+                if (isTypeVariableAlias(modeValue)) {
+                    variableData[mode.name] = await resolveAlias(modeValue)
+                } else {
+                    variableData[mode.name] = getFormattedVariableValue(modeValue);
                 }
-                modeLevel = modeLevel[key];
-            });
-            })
-        } else {
-            path?.forEach((key, index) => {
-            if (!currentLevel[key]) {
-                currentLevel[key] = (index === path.length - 1) ? variableData : {};
+
+                }
+            } 
+            /* Otherwise, get the variable data for the first mode */
+            else {
+                const modeValue = variable?.valuesByMode[Object.keys(variable.valuesByMode)[0]]!;
+                if (isTypeVariableAlias(modeValue)) {
+                variableData = await resolveAlias(modeValue)
+                } else {
+                variableData = getFormattedVariableValue(modeValue);
+                }
             }
-            currentLevel = currentLevel[key];
-            });
-        }
+
+
+            /* -------------------------------- */
+            /* Step 3 : Build the variable tree */
+            /* -------------------------------- */
+
+            /* Get the path of the variable */
+            const path = variable?.name.split('/').slice(1);
+
+            /* Get the current level of the tree */
+            let currentLevel: any = trees.find((tree) => Object.keys(tree)[0] === variableToken)![variableToken];
+
+            /* If the collection has more than 1 mode and the token parameter is set to true, build the variable tree for each mode */
+            if (collection.modes.length > 1 && tokenParams.find((param) => param.tokenName === variableToken)?.groupByModes) {
+                
+                /* For each mode, build the variable tree */
+                collection.modes.forEach((mode) => {
+                    if (!currentLevel[mode.name]) {
+                        currentLevel[mode.name] = {};
+                    }
+
+                    let modeLevel = currentLevel[mode.name];
+                    
+                    /* For each key in the path, create a new level if it doesn't exist */
+                    path?.forEach((key, index) => {
+                        if (!modeLevel[key]) {
+                            modeLevel[key] = index === path.length - 1 ? variableData[mode.name] : {};
+                        }
+                        modeLevel = modeLevel[key];
+                    });
+                })
+            } 
+            /* Otherwise, build the variable tree for the first mode only */
+            else {
+                path?.forEach((key, index) => {
+                if (!currentLevel[key]) {
+                    currentLevel[key] = (index === path.length - 1) ? variableData : {};
+                }
+                currentLevel = currentLevel[key];
+                });
+            }
         }
     }
 
     return trees;
+
 }
+
 

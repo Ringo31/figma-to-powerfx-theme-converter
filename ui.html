@@ -32,10 +32,10 @@
 
 
       <!-- TODO table qui contient les éléments de premier niveau de la collection sélectionnée. Une colonne pour le nom de l'element, une autre un checkbox qui indique si l'element est sélectionné -->
-      <table id="token-table"></table>
+      <!-- <table id="token-table"></table> -->
       
       <!-- TODO table qui contient les éléments de premier niveau de la collection sélectionnée. Une colonne pour le nom de l'element, une autre un checkbox qui indique si l'element est sélectionné -->
-      <table id="token-table"></table>
+      <!-- <table id="token-table"></table> -->
 
       
 
@@ -56,32 +56,25 @@
 
   <script>
 
-    /* function checkboxHandler() {
-      // Get an array of booleans indicating whether each checkbox is checked or not
-      const tokenParams = Array.prototype.map.call(document.getElementById('token-table').querySelectorAll("input[type=checkbox]"), checkbox => { return {tokenName: checkbox.id, groupByModes: checkbox.checked} });
-
-      // Get the selected collection
-      const collectionId = document.getElementById('variable-collections').value
-
-      // Send the message to the main script
-      parent.postMessage({ pluginMessage: { type : 'requestDisplay', collectionId : collectionId, tokenParams: tokenParams } }, '*');  
+    /* function copyToClipboard() {
+      const output = document.getElementById('output');
+      output.select();
+      document.execCommand('copy');
     } */
 
+    /* Handle change in the select element */
+    /* When the select element changes, request the list of tokens for the new selected collection */
     function selectHandler() {
 
-      // Get the selected collection
+      /* Get the selected collection */
       const collectionId = document.getElementById('variable-collections').value
 
-      // Send the message to the main script
+      /* Send the message to the main script */
       parent.postMessage({ pluginMessage: { type : 'REQUEST_COLLECTION_TOKENS', collectionId: collectionId } }, '*');
     }
-/* 
-    function inputHandler() {
-      const tokenName = document.getElementById('variable-name').value
-      // Send the message to the main script
-      parent.postMessage({ pluginMessage: { type : 'requestDisplay', tokenName : tokenName } }, '*');
-    } */
 
+    /* Handle change in the table element */
+    /* When a chackbox in the table element is clicked, or the switch name is changed, request the display of the variable tree for the selected collection */
     function tableHandler(event) {
       const collectionId = document.getElementById('variable-collections').value
 
@@ -95,7 +88,6 @@
           switchName: input.value,
         }
       });
-      console.log(tokenParams)
       parent.postMessage({ pluginMessage: { type : 'REQUEST_DISPLAY', tokenParams: tokenParams, collectionId: collectionId } }, '*');
     }
 
