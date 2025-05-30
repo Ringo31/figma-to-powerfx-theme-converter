@@ -16,28 +16,27 @@
       </div>
 
       <div class="flex flex-col">
-        <label class="text-sm font-medium text-gray-700" for="variable-collections">Include switch ?</label>
+        <label class="text-sm font-medium text-gray-700" for="color-format">Format des couleurs</label>
+        <select class="flex-1 mt-1 rounded-md border border-purple-300 focus:outline-purple-700 shadow-sm sm:text-sm" id="color-format" onchange="tableHandler()">
+          <option value="rgba">RGBA</option>
+          <option value="hex">Hex</option>
+        </select>
+      </div>
+
+      <div class="flex flex-col">
+        <label class="text-sm font-medium text-gray-700" for="token-table">Tokens à exporter</label>
         <table class="table-auto divide-y divide-gray-200 border-separate bg-white shadow-sm rounded-md border border-purple-300">
           <thead class="bg-gray-50">
             <tr class="text-center">
-              <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 tracking-wider">Switch</th>
+              <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 tracking-wider">Sélection</th>
               <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 tracking-wider">Token</th>
-              <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 tracking-wider">Switch Name</th>
+              <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 tracking-wider">Nom personnalisé</th>
             </tr>
           </thead>
           <tbody id="token-table" class="divide-y divide-gray-200 *:focus:outline-purple-700">
           </tbody>
         </table>
       </div>
-
-
-      <!-- TODO table qui contient les éléments de premier niveau de la collection sélectionnée. Une colonne pour le nom de l'element, une autre un checkbox qui indique si l'element est sélectionné -->
-      <!-- <table id="token-table"></table> -->
-      
-      <!-- TODO table qui contient les éléments de premier niveau de la collection sélectionnée. Une colonne pour le nom de l'element, une autre un checkbox qui indique si l'element est sélectionné -->
-      <!-- <table id="token-table"></table> -->
-
-      
 
     </div>
     
@@ -46,26 +45,14 @@
         <label for="output" class="block text-sm font-medium">Query output :</label>
         <textarea class="flex-1 mt-1 p-2 w-full rounded-md border border-purple-300 focus:outline-purple-700 shadow-sm text-xs resize-none" wrap="off" id="output" readonly></textarea>  
       </div>
-      
-      <!-- <button onclick="copyToClipboard()" class="self-end bg-purple-500 hover:bg-purple-600 active:bg-purple-700  rounded-md text-gray-100 w-32">Copier</button> -->
     </div>
     
   </div>
   
-  
-
   <script>
-
-    /* function copyToClipboard() {
-      const output = document.getElementById('output');
-      output.select();
-      document.execCommand('copy');
-    } */
-
     /* Handle change in the select element */
     /* When the select element changes, request the list of tokens for the new selected collection */
     function selectHandler() {
-
       /* Get the selected collection */
       const collectionId = document.getElementById('variable-collections').value
 
@@ -74,9 +61,10 @@
     }
 
     /* Handle change in the table element */
-    /* When a chackbox in the table element is clicked, or the switch name is changed, request the display of the variable tree for the selected collection */
+    /* When a checkbox in the table element is clicked, or the custom name is changed, request the display of the variable tree for the selected collection */
     function tableHandler(event) {
       const collectionId = document.getElementById('variable-collections').value
+      const colorFormat = document.getElementById('color-format').value
 
       const tokenParams = Array.prototype.map.call(document.getElementById('token-table').querySelectorAll('tr'), row => {
         const checkbox = row.querySelector('input[type=checkbox]');
@@ -84,11 +72,12 @@
         const cell = row.querySelector('td:nth-child(2)');
         return {
           tokenName: cell.textContent,
-          groupByModes: checkbox.checked,
-          switchName: input.value,
+          selected: checkbox.checked,
+          customName: input.value || cell.textContent,
         }
-      });
-      parent.postMessage({ pluginMessage: { type : 'REQUEST_DISPLAY', tokenParams: tokenParams, collectionId: collectionId } }, '*');
+      }).filter(param => param.selected);
+
+      parent.postMessage({ pluginMessage: { type : 'REQUEST_DISPLAY', tokenParams: tokenParams, collectionId: collectionId, colorFormat: colorFormat } }, '*');
     }
 
     /* Listen for messages from the main script */
@@ -106,7 +95,6 @@
         message.variableCollectionArray.forEach(variableCollection => {
           const option = document.createElement('option');
           option.value = variableCollection.id;
-          //option.setAttribute('data-modesLenght', variableCollection.modes.length);
           option.textContent = variableCollection.name;
           selectElement.appendChild(option);
         });
@@ -120,9 +108,6 @@
 
       /* Handle the collection tokens response from the main script: Generate a table with the list of tokens for the selected collection */
       if (message.type === 'SEND_COLLECTION_TOKENS') {
-
-        /* Step 1 : Generate a table with the list of tokens for the selected collection */
-        
         /* Get the table body and clear it */
         const tableBody = document.getElementById('token-table');
         tableBody.innerHTML = '';
@@ -151,34 +136,27 @@
           /* Append the name cell to the row */
           row.appendChild(nameCell);
 
-          /* Create a cell for the switch name */
-          const switchNameCell = document.createElement('td');
-          switchNameCell.style.flex = '1';
-          switchNameCell.style.padding = '0.25rem';
-          const switchNameInput = document.createElement('input');
-          switchNameInput.type = 'text';
-          switchNameInput.style.width = '100%';
-          switchNameInput.style.backgroundColor = '#f5f5f5';
-          switchNameInput.style.fontSize = '0.75rem';
-          switchNameInput.style.padding = '0.25rem';
-          switchNameInput.style.borderRadius = '0.25rem';
-          switchNameInput.onchange = tableHandler;
-          switchNameCell.appendChild(switchNameInput);
+          /* Create a cell for the custom name */
+          const customNameCell = document.createElement('td');
+          customNameCell.style.flex = '1';
+          customNameCell.style.padding = '0.25rem';
+          const customNameInput = document.createElement('input');
+          customNameInput.type = 'text';
+          customNameInput.style.width = '100%';
+          customNameInput.style.backgroundColor = '#f5f5f5';
+          customNameInput.style.fontSize = '0.75rem';
+          customNameInput.style.padding = '0.25rem';
+          customNameInput.style.borderRadius = '0.25rem';
+          customNameInput.placeholder = token;
+          customNameInput.onchange = tableHandler;
+          customNameCell.appendChild(customNameInput);
           
-          /* Append the switch name cell to the row */
-          row.appendChild(switchNameCell);
+          /* Append the custom name cell to the row */
+          row.appendChild(customNameCell);
 
           /* Add the row to the table body */
           tableBody.appendChild(row);
         });
-
-
-        /* Step 2 : Request the display for the selected collection with the list of tokens */
-        
-        const tokenParams = message.collectionTokens.map(token => ({ tokenName: token, groupByModes: false, switchName: '' }));
-        const collectionId = document.getElementById('variable-collections').value
-
-        parent.postMessage({ pluginMessage: { type : 'REQUEST_DISPLAY', collectionId : collectionId, tokenParams: tokenParams } }, '*');
       }
 
       /* Handle the display response from the main script: Display the generated display tree in the UI */

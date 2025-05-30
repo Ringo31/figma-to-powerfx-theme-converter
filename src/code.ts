@@ -22,12 +22,13 @@ figma.ui.onmessage = async (msg) => {
 		figma.ui.postMessage({ type : 'SEND_COLLECTION_TOKENS', collectionTokens: collectionTokens });
 	}
 
-	/* Handle display request from the UI */
+	/* Handle display request from the UI : Generate and display the variable tree for the selected tokens */
 	if (msg.type === 'REQUEST_DISPLAY') {
 		const collectionId = msg.collectionId;
 		const tokenParams = msg.tokenParams;
+		const colorFormat = msg.colorFormat as 'rgba' | 'hex';
 
-		const displayTree = await generateVariableTree(collectionId, tokenParams);
+		const displayTree = await generateVariableTree(collectionId, tokenParams, colorFormat);
 		figma.ui.postMessage({ type: 'SEND_DISPLAY', displayTree: displayFormattedJSON(displayTree, tokenParams) });
 	}
 };
