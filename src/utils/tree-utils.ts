@@ -1,6 +1,38 @@
 import { toOneWord, isTypeVariableAlias, getFormattedVariableValue } from "./variable-utils";
 import { resolveAlias } from "./figma-utils";
 
+/* Returns an array of all first-level keys in the given variable collection */
+export async function getCollectionTokens(collectionId: string): Promise<string[]> {
+    // Get the collection object from Figma
+    const collection = await figma.variables.getVariableCollectionByIdAsync(collectionId);
+
+    // Initialize an empty array to store the first-level keys
+    const firstLevelVariables: string[] = [];
+
+    if (collection) {
+        // Iterate over all the variable IDs in the collection
+        for (const variableId of collection?.variableIds) {
+            // Get the variable object from Figma
+            const variable = await figma.variables.getVariableByIdAsync(variableId);
+
+            // Get the path of the variable
+            const path = variable?.name.split('/');
+
+            // Get the first-level key
+            const firstLevel = path?.shift()!;
+
+            // Check if the first-level key is not already in the array
+            if (!firstLevelVariables.includes(firstLevel)) {
+                // Add the first-level key to the array
+                firstLevelVariables.push(firstLevel);
+            }
+        }
+    }
+
+    // Return the array of first-level keys
+    return firstLevelVariables;
+}
+
 function customJSONStringify(json: any, level: number = 1, groupByModes: boolean = false, switchName: string = '') {
   
     let output = '';
@@ -146,22 +178,3 @@ export async function generateVariableTree(_collectionId: string, tokenParams: {
     return trees;
 }
 
-export async function getCollectionTokens(_collectionId: string): Promise<string[]> {
-    const collection = await figma.variables.getVariableCollectionByIdAsync(_collectionId);
-    const firstLevelVariables: string[] = [];
-
-    if (collection) {
-        for (const variableId of collection?.variableIds) {
-        const variable = await figma.variables.getVariableByIdAsync(variableId);
-
-        const path = variable?.name.split('/');
-        const firstLevel = path?.shift()!; // Supprime le premier élément et le stocke
-
-        if (!firstLevelVariables.includes(firstLevel)) {
-            firstLevelVariables.push(firstLevel);
-        }
-        }
-    }
-
-    return firstLevelVariables;
-}
